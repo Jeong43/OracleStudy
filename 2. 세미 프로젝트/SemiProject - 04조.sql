@@ -1,0 +1,152 @@
+-- 3번 : 성적, 중도포기
+
+CREATE TABLE MID_DROP
+( DROP_ID       VARCHAR2(30)
+, ENROLL_ID     VARCHAR2(30)
+, DROP_DATE     DATE           NOT NULL
+, CONSTRAINT MID_DPOP_ID_PK PRIMARY KEY(DROP_ID)
+, CONSTRAINT MID_DPOP_ENROLL_ID_FK FOREIGN KEY(ENROLL_ID)
+             REFERENCES ENROLL(ENROLL_ID)
+, CONSTRAINT DROP_DATE_INTERVAL CHECK(DROP_DATE > ENROLL.ENROLL_DATE)   ------ < 다른 테이블 참조 하는 건 이렇게 하는 게 맞을까...
+);
+
+CREATE TABLE SCORE
+( SCORE_ID              VARCHAR2(30) 
+, ENROLL_ID             VARCHAR2(30)
+, ESTABLISHED_SUB_ID    VARCHAR2(30)
+, ATTEND_SCORE          NUMBER(3)
+, PRACTICAL_SCORE       NUMBER(3)
+, WRITING_SCORE         NUMBER(3)
+, CONSTRAINT SOCRE_ID_PK PRIMARY KEY(SCORE_ID)
+, CONSTRAINT SCORE_ENROLL_ID_FK FOREIGN KEY(ENROLL_ID)
+             REFERENCES ENROLL(ENROLL_ID)
+, CONSTRAINT SCORE_ESTABLISHED_SUB_ID_FK FOREIGN KEY(ESTABLISHED_SUB_ID)
+             REFERENCES ESTABLISHED_SUB(ESTABLISHED_SUB_ID)
+, CONSTRAINT SCORE_ATTEND_SCORE_CK CHECK(ATTEND_SCORE BETWEEN 0 AND ESTABLISHED_SUB.ATTEND_PERCENT)
+, CONSTRAINT SCORE_PRACTICA_SCORE_CK CHECK(PRACTICA_SCORE BETWEEN 0 AND ESTABLISHED_SUB.PRACTICA_PERCENT)
+, CONSTRAINT SCORE_WRITING_SCORE_CK CHECK(WRITING_SCORE BETWEEN 0 AND ESTABLISHED_SUB.WRITING_PERCENT)
+);
+
+
+--○ 성적입력 프로시저
+--1. 성적 입력 전용 화면 출력
+-- 자신이 강의한 과목을, 중도탈락자를 제외하고 성적 입력
+-- 학생 이름은 자동으로 입력되어 있고, 성적(출결, 실기, 필기)만 입력하면 된다.
+-- 각 성적의 합(총점)이 자동으로 출력된다.
+SELECT C.COURSE_NAME "과목명", S.ST_NAME "학생명"
+     , NVL(SCO.ATTEND_SCORE, 0) "출결점수", NVL(SCO.PRACTICAL_SCORE, 0) "실기점수", NVL(SCO.WRITING_SCORE, 0) "필기점수"
+     , (NVL(SCO.ATTEND_SCORE, 0) + NVL(SCO.PRACTICAL_SCORE, 0) + NVL(SCO.WRITING_SCORE, 0)) "총점"
+FROM PROFESSORS P JOIN COURSE C
+    ON P.PRO_ID = C.PRO_ID
+                JOIN ENROLL E
+                ON C.COURSE_ID = E.COURSE_ID
+                    JOIN STUDENTS S
+                    ON E.ST_ID = S.ST_ID
+                        LEFT JOIN SCORE SCO
+                        ON E.E_ID = SCO.E_ID                            
+                            LEFT JOIN MID_DROP M
+                            ON E.E_ID = M.E_ID
+WHERE P.PRO_ID = 'PRO1'     -- 접속 중인 교수의 ID 입력
+  AND M.DROP_ID IS NULL;    -- 중도탈락자가 아닐 경우
+
+
+--2. 성적 입력 프로시저
+CREATE OR REPLACE PROCEDURE PRC_SCORE_INSERT 
+( V_E_ID                IN SCORE.E_ID%TYPE 
+, V_EST_SUB_ID          IN SCORE.EST_SUB_ID%TYPE
+, V_ATTEND_SCORE        IN SCORE.ATTEND_SCORE%TYPE
+, V_PRACTICAL_SCORE     IN SCORE.PRACTICAL_SCORE%TYPE
+, V_WRITING_SCORE       IN SCORE.WRITING_SCORE%TYPE
+)
+IS
+    V_COURSE_ID         COURSE.COURSE_ID%TYPE;
+    V_PRO_ID            COURSE.PRO_ID%TYPE;
+    V_CNT               NUMBER;
+
+    NOT_YOUR_EST_ERROR   EXCEPTION;
+    MID_DROP_STU_ERROR   EXCEPTION;
+
+BEGIN
+    -- 예외처리1. 자신이 강의한 과목이 아닐 경우
+    SELECT COURSE_ID INTO V_COURSE_ID
+    FROM ENROLL
+    WHERE E_ID = V_E_ID;
+    
+    SELECT PRO_ID INTO V_PRO_ID
+    FROM COURSE
+    WHERE COURSE_ID = V_COURSE_ID;
+    
+    IF (V_PRO_ID != 'PRO1') -- 해당 교수의 코드를 입력해야 함
+        THEN RAISE NOT_YOUR_EST_ERROR;
+    END IF;
+    
+    
+    -- 예외처리2. 중도탈락한 수강신청 내역일 경우
+    SELECT COUNT(*) INTO V_CNT
+    FROM MID_DROP
+    WHERE E_ID = V_E_ID;
+    
+    IF (V_CNT > 0)
+        THEN RAISE MID_DROP_STU_ERROR;
+    END IF;
+    
+
+    -- SCORE(성적테이블) INSERT 
+    INSERT INTO SCORE(SCORE_ID, E_ID, EST_SUB_ID, ATTEND_SCORE, PRACTICAL_SCORE, WRITING_SCORE)
+    VALUES('SCORE' || SEQ_SCORE_ID.NEXTVAL, V_E_ID, V_EST_SUB_ID, V_ATTEND_SCORE, V_PRACTICAL_SCORE, V_WRITING_SCORE);
+
+
+    -- 커밋
+    COMMIT;
+    
+    
+    -- 예외처리
+    EXCEPTION
+        WHEN NOT_YOUR_EST_ERROR 
+            THEN RAISE_APPLICATION_ERROR(-20001, '성적처리할 수 없는 수강신청 내역입니다.');
+                 ROLLBACK;
+        WHEN MID_DROP_STU_ERROR
+            THEN RAISE_APPLICATION_ERROR(-20002, '중도포기한 수강신청 내역입니다.');
+                 ROLLBACK;
+        WHEN OTHERS 
+            THEN ROLLBACK;
+END;
+--==>> Procedure PRC_SCORE_INSERT이(가) 컴파일되었습니다.
+
+
+-- 테스트
+    SELECT COURSE_ID -- INTO V_COURSE_ID
+    FROM ENROLL
+    WHERE E_ID = 'ENROLL1';
+    
+    SELECT PRO_ID --INTO V_PRO_ID
+    FROM COURSE
+    WHERE COURSE_ID = 'CO1';
+
+    SELECT COUNT(*) --INTO V_CNT
+    FROM MID_DROP
+    WHERE E_ID = 'ENROLL2';
+    
+    
+--○ 교수자 요구 분석
+-- 3. 성적 출력 기능
+-- 자신이 강의한 과목, "과목명, 과목 기간(시작), 과목기간(끝), 교재명, 학생명, 출결, 실기, 필기, 총점, 등수
+-- 과정 중도탈락 시: 수강한 과목 성적 출력, 중도탈락 여부 출력
+SELECT SUB.SUB_NAME "과목명", SUB.S_START "과목 시작일", SUB.S_END "과목 종료일", SUB.BOOK_NAME "교재명"
+     , STU.ST_NAME "학생명", SC.ATTEND_SCORE "출결점수", SC.PRACTICAL_SCORE "실기점수", SC.WRITING_SCORE "필기점수"
+     , (NVL(SC.ATTEND_SCORE, 0) + NVL(SC.PRACTICAL_SCORE, 0) + NVL(SC.WRITING_SCORE, 0)) "총점"
+     , RANK() OVER(ORDER BY (NVL(SC.ATTEND_SCORE, 0) + NVL(SC.PRACTICAL_SCORE, 0) + NVL(SC.WRITING_SCORE, 0)) DESC) "등수" 
+    , CASE WHEN MID.E_ID IS NOT NULL THEN 'Y'
+            ELSE 'N'
+       END "중도포기"
+FROM STUDENTS STU RIGHT JOIN ENROLL E
+     ON STU.ST_ID = E.ST_ID
+        LEFT JOIN SCORE SC
+        ON E.E_ID = SC.E_ID
+            RIGHT JOIN ESTABLISHED_SUB EST
+            ON SC.EST_SUB_ID = EST.EST_SUB_ID
+                LEFT JOIN SUBJECTS SUB
+                ON EST.SUB_ID = SUB.SUB_ID
+                    LEFT JOIN MID_DROP MID
+                    ON E.E_ID = MID.E_ID                    
+WHERE EST.PRO_ID IN ('PRO1', 'PRO2'); -- WHERE절에 해당되는 교수 코드 입력    

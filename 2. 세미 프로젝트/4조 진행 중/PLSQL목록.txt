@@ -1,0 +1,86 @@
+--○학생 로그인 프로시저 생성 - PRC_LOGIN_ST
+
+--○관리자 로그인 프로시저 생성 - PRC_LOGIN_AD
+
+--○교수 로그인 프로시저 생성 - PRC_LOGIN_PRO
+
+--○로그인 프로시저 생성(학생, 관리자, 교수 통합) - PRC_LOGIN
+
+
+--○ 관리자 삭제 프로시저 - PRC_AD_DELETE
+
+
+
+--○ STUDENT_INSERT 프로시저 - PRC_STUDENT_INSERT
+-- 주민번호 자리수 틀렸을 경우 예외처리 LENGTH()
+
+--○ STUDENT_UPDATE 프로시저 - PRC_STUDENT_UPDATE
+
+--○ STUDENT_DELETE 프로시저 - PRC_STUDENT_DELETE
+
+--○ 학생 테이블 이벤트로그 트리거 - TRG_STD_EVENTLOG
+
+
+--○ 수강신청 INSERT 프로시저 - PRC_ENROLL_INSERT(E_ID, ST_ID, COURSE_ID, E_DATE)
+
+
+--○ 중도포기 INSERT 프로시저 - PRC_MID_DROP_INSERT
+--이미 그 과정을 DROP한 사람이면 예외처리
+
+--○ 교수 INSERT 프로시저 - PRC_PRO_PW_INSERT 
+
+--○ 교수 이벤트로그 트리거 생성 - TRG_PRO_EVENTLOG
+
+--○ 삭제된 교수 대체하는 프로시저 - PRC_PRO_CHANGE 
+
+--○ 교수 정보 수정 프로시저 - PRC_PRO_UPDATE (이름, 패스워드 변경)
+
+--○ 개설과목 INSERT 프로시저 - PRC_ESTABLISHED_SUB 
+
+--○ 교수 삭제 프로시저 - PRC_PRO_DELETE
+
+--○ 교수 삭제 트리거 - TRG_PRO_DELETE
+
+
+--○ 강의진행여부(강의 예정, 강의 중, 강의 종료) 함수 - FN_STATUS
+
+--○ 수강과목 총점 함수- FN_TOTAL_SCORE
+
+
+--○ 성적입력 프로시저 - PRC_SCORE_INSERT
+
+--○ 성적수정 프로시저 - PRC_SCORE_UPDATE
+
+--○ 성적삭제 프로시저 - PRC_SCORE_DELETE
+
+
+--○ 과정 입력 프로시저 - PRC_COR_INSERT
+
+--○ 과정 수정 프로시저 - PRC_COR_UPDATE
+
+--○ 과정 삭제 프로시저 - PRC_COR_DELETE
+
+--○ 과정 삭제 트리거 - DEL_COURSE 
+
+
+--○ 과목별 배점(비중) 부여 - PRC_SUB_SCORE_RATIO
+
+--○ 과목 DELETE 프로시저 생성 - PRC_SUB_DELETE
+
+--○ 과목 UPDATE 프로시저 - PRC_SUB_UPDATE
+
+--○ 과목 UPDATE & DELETE 트리거 - TRG_SUB_UPDATE
+
+
+--○ 과목 + 개설과목 INSERT - PRC_SUB_INSERT
+--(+) 예외처리되면서 과목의 과목코드부여 시퀀스번호가 올라감. 수정할 수 있으면 하기
+
+
+
+
+
+
+
+
+
+
